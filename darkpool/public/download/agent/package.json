@@ -1,0 +1,17 @@
+{
+  "name": "darkpool-agent",
+  "version": "1.0.0",
+  "description": "DARKPOOL worker agent — runs on Supporter VPSs, reports real resources and executes workloads",
+  "type": "module",
+  "bin": {
+    "darkpool-agent": "./src/agent.js"
+  },
+  "scripts": {
+    "start": "node src/agent.ts",
+    "dev": "bun src/agent.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5"
+  }
+}

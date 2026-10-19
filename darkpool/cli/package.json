@@ -1,0 +1,19 @@
+{
+  "name": "darkpool-cli",
+  "version": "1.0.0",
+  "description": "DARKPOOL admin CLI — manage workers, workloads, resources",
+  "type": "module",
+  "bin": {
+    "darkpool": "./dist/cli.js",
+    "darkpool-info": "./dist/info.js",
+    "darkpool-df": "./dist/df.js"
+  },
+  "scripts": {
+    "build": "bun build src/cli.ts --outfile dist/cli.js --target node && bun build src/info.ts --outfile dist/info.js --target node && bun build src/df.ts --outfile dist/df.js --target node",
+    "start": "node dist/cli.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5"
+  }
+}

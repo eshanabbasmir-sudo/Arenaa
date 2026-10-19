@@ -1,0 +1,180 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  /* DARKPOOL-specific */
+  --color-violet: var(--violet);
+  --color-cyan: var(--cyan);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-info: var(--info);
+}
+
+/* DARKPOOL — dark-first only. Light theme intentionally disabled. */
+:root {
+  --radius: 0.875rem;
+  /* deep dark background */
+  --background: #080A0F;
+  --foreground: #E6EAF2;
+  --card: #11151D;
+  --card-foreground: #E6EAF2;
+  --popover: #11151D;
+  --popover-foreground: #E6EAF2;
+  /* accent: electric violet */
+  --primary: #7C5CFF;
+  --primary-foreground: #FFFFFF;
+  --secondary: #1A1F2A;
+  --secondary-foreground: #E6EAF2;
+  --muted: #15191F;
+  --muted-foreground: #8A93A3;
+  --accent: #7C5CFF;
+  --accent-foreground: #FFFFFF;
+  --destructive: #F25555;
+  --border: rgba(255, 255, 255, 0.07);
+  --input: rgba(255, 255, 255, 0.08);
+  --ring: #7C5CFF;
+  /* extended palette */
+  --violet: #7C5CFF;
+  --cyan: #4DD4F4;
+  --success: #3DD68C;
+  --warning: #F2B544;
+  --danger: #F25555;
+  --info: #4DA8F2;
+  /* chart colors */
+  --chart-1: #7C5CFF;
+  --chart-2: #4DD4F4;
+  --chart-3: #3DD68C;
+  --chart-4: #F2B544;
+  --chart-5: #F25555;
+  /* sidebar */
+  --sidebar: #0D1017;
+  --sidebar-foreground: #E6EAF2;
+  --sidebar-primary: #7C5CFF;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #1A1F2A;
+  --sidebar-accent-foreground: #E6EAF2;
+  --sidebar-border: rgba(255, 255, 255, 0.05);
+  --sidebar-ring: #7C5CFF;
+}
+
+.dark {
+  :root {
+    /* keep dark theme identical — DARKPOOL is dark-first */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html, body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+  }
+  /* slim scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.14);
+  }
+}
+
+@layer utilities {
+  .glass {
+    background: linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.005));
+    backdrop-filter: blur(10px);
+  }
+  .text-violet { color: var(--violet); }
+  .text-cyan { color: var(--cyan); }
+  .text-success { color: var(--success); }
+  .text-warning { color: var(--warning); }
+  .text-danger { color: var(--danger); }
+  .text-info { color: var(--info); }
+  .bg-violet { background-color: var(--violet); }
+  .bg-cyan { background-color: var(--cyan); }
+  .bg-success { background-color: var(--success); }
+  .bg-warning { background-color: var(--warning); }
+  .bg-danger { background-color: var(--danger); }
+  .bg-info { background-color: var(--info); }
+  .border-violet { border-color: var(--violet); }
+  .border-cyan { border-color: var(--cyan); }
+  .border-success { border-color: var(--success); }
+  .border-warning { border-color: var(--warning); }
+  .border-danger { border-color: var(--danger); }
+
+  .pulse-dot {
+    position: relative;
+  }
+  .pulse-dot::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 9999px;
+    box-shadow: 0 0 0 0 currentColor;
+    animation: dp-pulse 2s ease-out infinite;
+    opacity: 0.6;
+  }
+  @keyframes dp-pulse {
+    0% { box-shadow: 0 0 0 0 currentColor; opacity: 0.7; }
+    70% { box-shadow: 0 0 0 6px transparent; opacity: 0; }
+    100% { box-shadow: 0 0 0 0 transparent; opacity: 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+    }
+  }
+}

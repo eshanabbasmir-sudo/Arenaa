@@ -1,0 +1,20 @@
+// PUT /api/nodes/:id/metadata — update node metadata (displayName, tags, group, location, notes)
+import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
+import { updateNodeMetadata } from "@/lib/node-manager";
+
+export async function PUT(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const { id } = await ctx.params;
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "unauthenticated" }, { status: 401 });
+  const body = await req.json().catch(() => ({}));
+  const res = await updateNodeMetadata(id, {
+    displayName: body.displayName,
+    tags: Array.isArray(body.tags) ? body.tags : undefined,
+    group: body.group,
+    location: body.location,
+    notes: body.notes,
+  });
+  if (!res.ok) return NextResponse.json({ error: res.error }, { status: 400 });
+  return NextResponse.json({ ok: true });
+}

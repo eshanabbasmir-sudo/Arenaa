@@ -1,0 +1,316 @@
+// DARKPOOL — Distributed VPS Resource Pool
+// Prisma schema. SQLite for dev, PostgreSQL-compatible for production.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users & Auth ────────────────────────────────────────────────────────────
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String?
+  passwordHash  String
+  role          String   @default("admin") // admin | operator | viewer
+  status        String   @default("active") // active | disabled
+  lastLoginAt   DateTime?
+  lastPasswordChangeAt DateTime?
+  failedLoginAttempts Int @default(0)
+  lockedUntil   DateTime?
+  preferences   String   @default("{}") // JSON: theme, notifications, etc.
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sessions      Session[]
+  workloads     Workload[]
+  auditLogs     AuditLog[]
+  apiTokens     ApiToken[]
+  templates     WorkloadTemplate[]
+  issuedTokens  RegistrationToken[]
+}
+
+model ApiToken {
+  id           String   @id @default(cuid())
+  userId       String
+  name         String
+  tokenHash    String   @unique
+  prefix       String   // first 8 chars for display
+  lastUsedAt   DateTime?
+  expiresAt    DateTime?
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  token        String   @unique
+  expiresAt    DateTime
+  userAgent    String?
+  ipAddress    String?
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ─── Nodes (Workers) ─────────────────────────────────────────────────────────
+
+model Node {
+  id              String   @id @default(cuid())
+  nodeId          String   @unique // human-friendly, e.g. worker-7f92a1
+  displayName     String?
+  role            String   @default("supporter") // supporter | main-local
+  status          String   @default("pending") // pending | online | unstable | offline | draining | disabled | removed | maintenance
+  // capabilities advertised at registration
+  cpuCores        Int      @default(0)
+  ramBytes       BigInt   @default(0)
+  diskBytes      BigInt   @default(0)
+  architecture    String?
+  os             String?
+  kernel         String?
+  hostname       String?
+  containerRuntime String?
+  features       String   @default("[]") // JSON array
+  // organization
+  tags           String   @default("[]") // JSON array of strings
+  group          String?  // logical group: prod, staging, etc.
+  location       String?  // geographic: us-east, eu-west, etc.
+  notes          String?  // free-form admin notes
+  // last seen
+  lastHeartbeatAt DateTime?
+  registeredAt   DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  credential     NodeCredential?
+  resources      NodeResource[]
+  heartbeats     Heartbeat[]
+  workloads      Workload[]
+  events         Event[]
+
+  @@index([status])
+}
+
+model NodeCredential {
+  id           String   @id @default(cuid())
+  nodeId       String   @unique
+  tokenHash    String   @unique // hashed agent token
+  rotatedAt    DateTime @default(now())
+  node         Node     @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+}
+
+// latest resource snapshot per node (one row, updated in place)
+model NodeResource {
+  id           String   @id @default(cuid())
+  nodeId       String   @unique
+  // raw measurements
+  cpuUsagePct  Float    @default(0) // 0-100, current utilization
+  loadAvg1     Float    @default(0)
+  loadAvg5     Float    @default(0)
+  loadAvg15    Float    @default(0)
+  ramTotal     BigInt   @default(0)
+  ramUsed      BigInt   @default(0)
+  ramAvailable BigInt   @default(0)
+  ramCached    BigInt   @default(0)
+  ramAllocated BigInt   @default(0) // sum of running workloads' ram limits
+  diskTotal    BigInt   @default(0)
+  diskUsed     BigInt   @default(0)
+  diskAvailable BigInt  @default(0)
+  diskAllocated BigInt @default(0)
+  filesystem   String?
+  mountPoint   String?
+  netRxBytes   BigInt   @default(0)
+  netTxBytes   BigInt   @default(0)
+  netInterface String?
+  uptime       Int      @default(0)
+  // computed
+  cpuAvailable Int      @default(0) // cores - allocated - reserve
+  ramAvailableEffective BigInt @default(0) // ramAvailable - reserve - allocated
+  diskAvailableEffective BigInt @default(0)
+  updatedAt    DateTime @updatedAt
+  node         Node     @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+}
+
+// heartbeat history (retention-managed)
+model Heartbeat {
+  id           String   @id @default(cuid())
+  nodeId       String
+  status       String
+  cpuUsagePct  Float
+  ramUsed      BigInt
+  ramTotal     BigInt
+  diskFree     BigInt
+  loadAvg1     Float
+  timestamp    DateTime @default(now())
+  node         Node     @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+
+  @@index([nodeId, timestamp])
+}
+
+// ─── Workloads ───────────────────────────────────────────────────────────────
+
+model Workload {
+  id            String   @id @default(cuid())
+  workloadId    String   @unique // e.g. ws-81af
+  name          String
+  ownerId       String?
+  nodeId        String?  // assigned worker
+  image         String   @default("ubuntu:22.04")
+  command       String?  // optional override
+  cpuLimit      Int      @default(1) // cores (minimum 1)
+  ramLimitMb    Int      @default(512)
+  diskLimitMb   Int      @default(1024)
+  status        String   @default("pending") // pending | scheduling | starting | running | stopping | stopped | failed | unknown
+  runtime       String   @default("auto") // docker | process | auto
+  containerId   String?  // real container/PID on the worker
+  pid           Int?
+  ip            String?
+  error         String?
+  // organization & metadata
+  tags          String   @default("[]") // JSON array
+  envVars       String   @default("{}") // JSON object
+  ports         String   @default("[]") // JSON array of port mappings
+  priority      Int      @default(0) // 0=normal, 1=high, 2=critical
+  notes         String?
+  templateId    String?
+  createdAt     DateTime @default(now())
+  startedAt     DateTime?
+  finishedAt    DateTime?
+  updatedAt     DateTime @updatedAt
+  owner         User?    @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  node          Node?    @relation(fields: [nodeId], references: [id], onDelete: SetNull)
+  events        Event[]
+
+  @@index([nodeId])
+  @@index([ownerId])
+  @@index([status])
+  @@index([tags])
+}
+
+model ResourceAllocation {
+  id           String   @id @default(cuid())
+  nodeId       String
+  workloadId   String   @unique
+  cpuCores     Int
+  ramMb        Int
+  diskMb       Int
+  createdAt    DateTime @default(now())
+
+  @@index([nodeId])
+}
+
+// ─── Observability ───────────────────────────────────────────────────────────
+
+model Event {
+  id           String   @id @default(cuid())
+  type         String   // node.connected, node.disconnected, workload.created, etc.
+  nodeId       String?
+  workloadId   String?
+  message      String
+  severity     String   @default("info") // info | warning | error | critical
+  meta         String   @default("{}") // JSON blob
+  createdAt    DateTime @default(now())
+
+  node         Node?    @relation(fields: [nodeId], references: [id], onDelete: SetNull)
+  workload     Workload? @relation(fields: [workloadId], references: [id], onDelete: SetNull)
+
+  @@index([type, createdAt])
+  @@index([nodeId, createdAt])
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  userId       String?
+  action       String
+  resource     String?
+  resourceId   String?
+  ipAddress    String?
+  userAgent    String?
+  meta         String   @default("{}")
+  createdAt    DateTime @default(now())
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+}
+
+// metric time-series (per node, per metric name)
+model MetricPoint {
+  id           String   @id @default(cuid())
+  nodeId       String?
+  metric       String   // cpu_usage, ram_used, disk_used, net_rx, net_tx
+  value        Float
+  timestamp    DateTime @default(now())
+
+  @@index([nodeId, metric, timestamp])
+  @@index([metric, timestamp])
+}
+
+// registration tokens (configurable: single-use OR multi-use OR unlimited)
+model RegistrationToken {
+  id           String   @id @default(cuid())
+  token        String   @unique
+  createdBy    String?
+  label        String?
+  usedByNodeId String?
+  // multi-use support: maxUses=-1 means unlimited; maxUses=1 means single-use (default)
+  maxUses      Int      @default(1)
+  useCount     Int      @default(0)
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  user         User?    @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([expiresAt])
+}
+
+// ─── Workload Templates ────────────────────────────────────────────────────
+model WorkloadTemplate {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  description  String?
+  image        String   @default("ubuntu:22.04")
+  command      String?
+  cpuCores     Int      @default(1)
+  ramMb        Int      @default(512)
+  diskMb       Int      @default(1024)
+  envVars      String   @default("{}") // JSON
+  ports        String   @default("[]") // JSON
+  tags         String   @default("[]") // JSON
+  isPublic     Boolean  @default(true)
+  createdBy    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User?    @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@index([createdBy])
+}
+
+// ─── Alerts ────────────────────────────────────────────────────────────────
+model Alert {
+  id           String   @id @default(cuid())
+  type         String   // node.cpu_high, node.ram_high, node.disk_full, node.offline, workload.failed, etc.
+  severity     String   @default("warning") // info | warning | error | critical
+  nodeId       String?
+  workloadId   String?
+  message      String
+  threshold    Float?
+  currentValue Float?
+  status       String   @default("active") // active | acknowledged | resolved
+  acknowledgedBy String?
+  acknowledgedAt DateTime?
+  resolvedAt   DateTime?
+  createdAt    DateTime @default(now())
+
+  @@index([status, createdAt])
+  @@index([nodeId, createdAt])
+  @@index([type, createdAt])
+}
